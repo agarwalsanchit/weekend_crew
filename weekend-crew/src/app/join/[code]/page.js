@@ -27,6 +27,7 @@ export default function JoinGroup() {
     const { data: { user } } = await supabase.auth.getUser();
     await ensureProfile(supabase, user);
     await supabase.from("group_members").upsert({ group_id: state.group.id, user_id: user.id });
+    try { localStorage.setItem("wc-group", state.group.id); } catch {}
     router.replace("/app");
   };
 

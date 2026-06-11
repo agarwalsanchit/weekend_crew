@@ -7,7 +7,7 @@ import {
   ChevronLeft, MessageCircle, Lock, Sun, Copy, LogOut
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { ensureProfile, addToGoogleCalendar } from "@/lib/auth";
+import { ensureProfile, addToGoogleCalendar, EMOJIS, COLORS } from "@/lib/auth";
 import { getUpcomingWeekends } from "@/lib/weekends";
 import { getNearbyIdeas } from "@/lib/events";
 
@@ -47,6 +47,8 @@ export default function App() {
 
   const [user, setUser] = useState(null);
   const [group, setGroup] = useState(null);
+  const [myGroups, setMyGroups] = useState([]);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [noGroup, setNoGroup] = useState(false);
   const [members, setMembers] = useState([]); // profiles
   const [availability, setAvailability] = useState({}); // key -> userId -> {status, comment}
@@ -90,9 +92,15 @@ export default function App() {
     if (!u) return router.replace("/");
     setUser(u);
     await ensureProfile(supabase, u);
-    const { data: memberships } = await supabase.from("group_members").select("group_id").eq("user_id", u.id).limit(1);
+    const { data: memberships } = await supabase.from("group_members").select("group_id").eq("user_id", u.id);
     if (!memberships?.length) return setNoGroup(true);
-    const { data: g } = await supabase.from("groups").select("*").eq("id", memberships[0].group_id).single();
+    const ids = memberships.map((m) => m.group_id);
+    const { data: gs } = await supabase.from("groups").select("*").in("id", ids).order("created_at");
+    setMyGroups(gs || []);
+    let saved = null;
+    try { saved = localStorage.getItem("wc-group"); } catch {}
+    const g = (gs || []).find((x) => x.id === saved) || gs?.[0];
+    if (!g) return setNoGroup(true);
     setGroup(g);
     setNoGroup(false);
     await loadGroupData(g);
@@ -180,19 +188,34 @@ export default function App() {
     ping(res.ok ? "📅 Added to your Google Calendar!" : "⚠️ Sign out & back in to grant calendar access");
   };
 
+  const selectGroup = async (g) => {
+    try { localStorage.setItem("wc-group", g.id); } catch {}
+    setGroup(g); setNoGroup(false); setOpenWeekend(null);
+    await loadGroupData(g);
+  };
+
   const createGroup = async () => {
     if (!groupForm.name.trim()) return;
     const { data: g, error } = await supabase.from("groups").insert({ name: groupForm.name.trim(), created_by: user.id }).select().single();
     if (error) return ping("⚠️ Couldn't create group");
     await supabase.from("group_members").insert({ group_id: g.id, user_id: user.id });
-    setGroup(g); setNoGroup(false); await loadGroupData(g);
+    setMyGroups((p) => [...p, g]);
+    await selectGroup(g);
   };
 
   const joinByCode = async () => {
     const { data: g } = await supabase.from("groups").select("*").eq("invite_code", groupForm.code.trim().toUpperCase()).maybeSingle();
     if (!g) return ping("⚠️ Invalid invite code");
     await supabase.from("group_members").upsert({ group_id: g.id, user_id: user.id });
-    setGroup(g); setNoGroup(false); await loadGroupData(g);
+    setMyGroups((p) => (p.some((x) => x.id === g.id) ? p : [...p, g]));
+    await selectGroup(g);
+  };
+
+  const saveAvatar = async (emoji, color) => {
+    await supabase.from("profiles").update({ emoji, color }).eq("id", user.id);
+    setMembers((p) => p.map((m) => (m.id === user.id ? { ...m, emoji, color } : m)));
+    setShowAvatarPicker(false);
+    ping(`${emoji} Looking good!`);
   };
 
   const copyInvite = () => {
@@ -501,6 +524,19 @@ export default function App() {
   // ----- crew tab -----
   const renderCrew = () => (
     <div className="max-w-2xl mx-auto px-4 pb-28">
+      {myGroups.length > 1 && (
+        <div className="mt-5 -mb-1">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">My crews</p>
+          <div className="flex gap-2 flex-wrap">
+            {myGroups.map((g) => (
+              <button key={g.id} onClick={() => selectGroup(g)}
+                className={`text-sm font-bold px-4 py-2 rounded-2xl border-2 transition ${g.id === group.id ? "bg-teal-600 border-teal-600 text-white" : "bg-white border-gray-200 text-gray-600 hover:border-teal-300"}`}>
+                {g.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="mt-5 mb-4 flex items-start justify-between">
         <div>
           <h2 className="text-2xl font-extrabold text-gray-800">{group.name}</h2>
@@ -520,10 +556,36 @@ export default function App() {
                 <p className="font-bold text-gray-800">{m.name} {m.id === user.id && <span className="text-xs text-teal-600">(you)</span>}</p>
                 <p className="text-xs text-gray-400">{fFrozen} plan{fFrozen !== 1 ? "s" : ""} locked in</p>
               </div>
+              {m.id === user.id && (
+                <button onClick={() => setShowAvatarPicker(!showAvatarPicker)}
+                  className="text-xs font-bold text-teal-700 bg-teal-50 px-3 py-1.5 rounded-xl hover:bg-teal-100">
+                  Change avatar
+                </button>
+              )}
             </div>
           );
         })}
       </div>
+      {showAvatarPicker && me && (
+        <div className="bg-white rounded-3xl shadow p-5 mt-4">
+          <p className="font-bold text-gray-800 mb-3">Pick your vibe</p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {EMOJIS.map((e) => (
+              <button key={e} onClick={() => saveAvatar(e, me.color)}
+                className={`w-10 h-10 rounded-2xl text-xl flex items-center justify-center border-2 transition ${me.emoji === e ? "border-teal-500 bg-teal-50 scale-110" : "border-gray-100 hover:border-gray-300"}`}>
+                {e}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Color</p>
+          <div className="flex flex-wrap gap-2">
+            {COLORS.map((c) => (
+              <button key={c} onClick={() => saveAvatar(me.emoji, c)}
+                className={`w-9 h-9 rounded-full ${c} border-4 transition ${me.color === c ? "border-gray-800 scale-110" : "border-white"}`} />
+            ))}
+          </div>
+        </div>
+      )}
       <button onClick={signOut} className="mt-6 mx-auto flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-600">
         <LogOut size={15} /> Sign out
       </button>
@@ -540,7 +602,9 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2">
             {me && <span className="text-sm text-gray-500 hidden sm:inline">Hey {me.name}!</span>}
-            <Avatar p={me} />
+            <button onClick={() => { setTab("crew"); setOpenWeekend(null); setShowAvatarPicker(true); }}>
+              <Avatar p={me} />
+            </button>
           </div>
         </div>
       </div>

@@ -11,8 +11,8 @@ export function signInWithGoogle(supabase, next = "/app") {
   });
 }
 
-const EMOJIS = ["🦊", "🐼", "🐯", "🐸", "🐰", "🐙", "🦁", "🐨", "🦉", "🐢"];
-const COLORS = ["bg-orange-400", "bg-sky-400", "bg-amber-400", "bg-green-400", "bg-purple-400", "bg-teal-400", "bg-rose-400", "bg-indigo-400"];
+export const EMOJIS = ["🦊", "🐼", "🐯", "🐸", "🐰", "🐙", "🦁", "🐨", "🦉", "🐢", "🐶", "🐱", "🦄", "🐳", "🦋", "🌵", "🍕", "🌮", "⚽️", "🎸", "🚀", "🌈", "🔥", "✨"];
+export const COLORS = ["bg-orange-400", "bg-sky-400", "bg-amber-400", "bg-green-400", "bg-purple-400", "bg-teal-400", "bg-rose-400", "bg-indigo-400"];
 
 // Ensure a profile row exists for the signed-in user; returns the profile.
 export async function ensureProfile(supabase, user) {
