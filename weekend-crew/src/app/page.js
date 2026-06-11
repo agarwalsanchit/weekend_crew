@@ -18,7 +18,7 @@ export default function Landing() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 flex items-center justify-center p-6">
+    <div className="min-h-dvh bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 flex items-center justify-center p-6">
       <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
         <div className="flex justify-center mb-3"><PartyPopper size={40} className="text-teal-600" /></div>
         <h1 className="text-3xl font-extrabold text-slate-800">Weekend Crew</h1>

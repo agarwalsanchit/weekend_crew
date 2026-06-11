@@ -190,12 +190,12 @@ export default function App() {
   const frozenPlans = suggestions.filter((s) => s.frozen);
   const myFrozen = frozenPlans.filter((s) => s.votes.includes(user?.id));
 
-  if (!user) return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400">Loading…</div>;
+  if (!user) return <div className="min-h-dvh bg-slate-50 flex items-center justify-center text-slate-400">Loading…</div>;
 
   // ----- no group yet -----
   if (noGroup) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 flex items-center justify-center p-6">
+      <div className="min-h-dvh bg-gradient-to-br from-slate-900 via-slate-800 to-teal-900 flex items-center justify-center p-6">
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
           <h1 className="text-2xl font-extrabold text-slate-800 text-center">Set up your crew</h1>
           <p className="text-slate-500 text-sm text-center mt-1 mb-6">Create a group, or join one with an invite code.</p>
@@ -218,7 +218,7 @@ export default function App() {
     );
   }
 
-  if (!group) return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-slate-400">Loading your crew…</div>;
+  if (!group) return <div className="min-h-dvh bg-slate-50 flex items-center justify-center text-slate-400">Loading your crew…</div>;
 
   // ----- weekend detail -----
   const renderWeekendDetail = () => {
@@ -513,7 +513,7 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-dvh bg-slate-50">
       <div className="bg-white/80 backdrop-blur sticky top-0 z-10 border-b border-slate-200">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
