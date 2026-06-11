@@ -1,6 +1,17 @@
-// Google sign-in with Calendar write scope so frozen plans can be added
-// to each member's own Google Calendar from the browser.
+// Plain Google sign-in — identity only (name/email), no extra permission
+// screens. Calendar access is requested separately via enableCalendarSync.
 export function signInWithGoogle(supabase, next = "/app") {
+  return supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+    },
+  });
+}
+
+// Opt-in: re-run Google auth WITH Calendar permissions so frozen plans land
+// on the user's calendar automatically and availability auto-fills.
+export function enableCalendarSync(supabase, next = "/app") {
   return supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
@@ -26,22 +37,4 @@ export async function ensureProfile(supabase, user) {
   };
   await supabase.from("profiles").upsert(profile);
   return profile;
-}
-
-// Add a frozen plan to the user's Google Calendar as an all-day event.
-export async function addToGoogleCalendar(supabase, { title, description, startISO, endISOExclusive }) {
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.provider_token;
-  if (!token) return { ok: false, reason: "no_token" };
-  const res = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      summary: `🎉 ${title}`,
-      description: description || "Locked in with Weekend Crew",
-      start: { date: startISO },
-      end: { date: endISOExclusive },
-    }),
-  });
-  return { ok: res.ok, reason: res.ok ? null : "api_error" };
 }

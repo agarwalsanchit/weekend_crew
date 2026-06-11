@@ -7,7 +7,7 @@ import {
   ChevronLeft, MessageCircle, Lock, Sun, Copy, LogOut
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { ensureProfile, addToGoogleCalendar, EMOJIS, COLORS } from "@/lib/auth";
+import { ensureProfile, enableCalendarSync, EMOJIS, COLORS } from "@/lib/auth";
 import { getUpcomingWeekends } from "@/lib/weekends";
 import { getNearbyIdeas } from "@/lib/events";
 
@@ -48,6 +48,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [group, setGroup] = useState(null);
   const [myGroups, setMyGroups] = useState([]);
+  const [syncEnabled, setSyncEnabled] = useState(null);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [noGroup, setNoGroup] = useState(false);
   const [members, setMembers] = useState([]); // profiles
@@ -92,6 +93,7 @@ export default function App() {
     if (!u) return router.replace("/");
     setUser(u);
     await ensureProfile(supabase, u);
+    fetch("/api/sync-status").then((r) => r.json()).then((j) => setSyncEnabled(!!j.enabled)).catch(() => {});
     const { data: memberships } = await supabase.from("group_members").select("group_id").eq("user_id", u.id);
     if (!memberships?.length) return setNoGroup(true);
     const ids = memberships.map((m) => m.group_id);
@@ -175,17 +177,22 @@ export default function App() {
     if (j.calendarAdded > 0) {
       ping(`🧊 Frozen — added to ${j.calendarAdded}/${j.totalVoters} Google Calendars!`);
     } else {
-      ping("🧊 Frozen! (Sign out & back in to enable calendar sync)");
+      ping("🧊 Plan frozen! Use “Add to Google Cal” or enable sync");
     }
   };
 
-  const syncToCalendar = async (s) => {
+  // Google Calendar event-template link — works with zero permissions.
+  const gcalLink = (s) => {
     const w = weekends.find((x) => x.key === s.weekend_key);
-    const res = await addToGoogleCalendar(supabase, {
-      title: s.title, description: `Weekend Crew · ${group.name}`,
-      startISO: w?.startISO, endISOExclusive: w?.endISOExclusive,
+    const start = (w?.startISO || s.weekend_key).replaceAll("-", "");
+    const end = (w?.endISOExclusive || "").replaceAll("-", "");
+    const p = new URLSearchParams({
+      action: "TEMPLATE",
+      text: `🎉 ${s.title}`,
+      dates: `${start}/${end}`,
+      details: `Weekend Crew · ${group?.name || ""}`,
     });
-    ping(res.ok ? "📅 Added to your Google Calendar!" : "⚠️ Sign out & back in to grant calendar access");
+    return `https://calendar.google.com/calendar/render?${p}`;
   };
 
   const selectGroup = async (g) => {
@@ -433,6 +440,13 @@ export default function App() {
         <h2 className="text-2xl font-extrabold text-gray-800">Upcoming weekends</h2>
         <p className="text-gray-500 text-sm">Tap a weekend to set availability & make plans 🎯</p>
       </div>
+      {syncEnabled === false && (
+        <button onClick={() => enableCalendarSync(supabase)}
+          className="w-full mb-4 text-left bg-gradient-to-r from-indigo-50 to-teal-50 border-2 border-teal-200 rounded-3xl p-4 hover:border-teal-400 transition">
+          <p className="font-bold text-gray-800 text-sm">📅 Enable calendar sync</p>
+          <p className="text-xs text-gray-500 mt-0.5">Auto-fill your availability & get frozen plans on your Google Calendar. Google shows a one-time “unverified app” notice — tap Advanced → continue.</p>
+        </button>
+      )}
       <div className="space-y-3">
         {weekends.map((w) => {
           const fc = freeCount(w.key);
@@ -508,9 +522,9 @@ export default function App() {
                   </div>
                   <div className="flex gap-2">
                     {s.link && <a href={s.link} target="_blank" rel="noreferrer" className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-xl flex items-center gap-1"><Ticket size={12} /> Booking</a>}
-                    <button onClick={() => syncToCalendar(s)} className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-xl flex items-center gap-1">
+                    <a href={gcalLink(s)} target="_blank" rel="noreferrer" className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-xl flex items-center gap-1">
                       <Calendar size={12} /> Add to Google Cal
-                    </button>
+                    </a>
                   </div>
                 </div>
               </div>
@@ -586,6 +600,15 @@ export default function App() {
           </div>
         </div>
       )}
+      <div className="mt-4 text-center">
+        {syncEnabled ? (
+          <p className="text-xs text-gray-400">📅 Calendar sync is on</p>
+        ) : (
+          <button onClick={() => enableCalendarSync(supabase)} className="text-xs font-bold text-teal-700 hover:underline">
+            📅 Enable calendar sync
+          </button>
+        )}
+      </div>
       <button onClick={signOut} className="mt-6 mx-auto flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-600">
         <LogOut size={15} /> Sign out
       </button>

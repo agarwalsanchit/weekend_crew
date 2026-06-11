@@ -35,7 +35,12 @@ export default function Landing() {
           </button>
         )}
         <p className="text-xs text-slate-400 mt-4">
-          Google sign-in also lets the app add frozen plans to your calendar.
+          Just your name &amp; email — nothing else. Calendar sync is optional, later.
+        </p>
+        <p className="text-xs text-slate-300 mt-6">
+          <a href="/privacy" className="hover:text-slate-500 underline">Privacy</a>
+          {" · "}
+          <a href="/terms" className="hover:text-slate-500 underline">Terms</a>
         </p>
       </div>
     </div>
