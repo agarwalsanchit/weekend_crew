@@ -5,7 +5,7 @@ export function signInWithGoogle(supabase, next = "/app") {
     provider: "google",
     options: {
       redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
-      scopes: "https://www.googleapis.com/auth/calendar.events",
+      scopes: "https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.freebusy",
       queryParams: { access_type: "offline", prompt: "consent" },
     },
   });

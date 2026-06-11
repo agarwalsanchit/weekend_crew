@@ -96,6 +96,19 @@ export default function App() {
     setGroup(g);
     setNoGroup(false);
     await loadGroupData(g);
+    // Auto-fill availability from everyone's Google Calendars (fills gaps only).
+    try {
+      const r = await fetch("/api/sync-availability", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupId: g.id }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (j.updated > 0) {
+        await loadGroupData(g);
+        ping("📡 Synced availability from Google Calendars");
+      }
+    } catch {}
   }, [supabase, router, loadGroupData]);
 
   useEffect(() => { bootstrap(); }, [bootstrap]);
@@ -142,15 +155,20 @@ export default function App() {
   };
 
   const freeze = async (s) => {
-    await supabase.from("suggestions").update({ frozen: true }).eq("id", s.id);
-    setSuggestions((p) => p.map((x) => (x.id === s.id ? { ...x, frozen: true } : x)));
-    const w = weekends.find((x) => x.key === s.weekend_key);
-    const res = await addToGoogleCalendar(supabase, {
-      title: s.title,
-      description: `Weekend Crew · ${group.name}`,
-      startISO: w?.startISO, endISOExclusive: w?.endISOExclusive,
+    ping("🧊 Freezing & syncing calendars…");
+    const res = await fetch("/api/freeze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ suggestionId: s.id }),
     });
-    ping(res.ok ? "🧊 Frozen + added to your Google Calendar!" : "🧊 Plan frozen! (Re-sign-in to enable calendar sync)");
+    const j = await res.json().catch(() => ({}));
+    if (!res.ok) return ping("⚠️ Couldn't freeze plan");
+    setSuggestions((p) => p.map((x) => (x.id === s.id ? { ...x, frozen: true } : x)));
+    if (j.calendarAdded > 0) {
+      ping(`🧊 Frozen — added to ${j.calendarAdded}/${j.totalVoters} Google Calendars!`);
+    } else {
+      ping("🧊 Frozen! (Sign out & back in to enable calendar sync)");
+    }
   };
 
   const syncToCalendar = async (s) => {

@@ -55,6 +55,12 @@ create table public.votes (
   primary key (suggestion_id, user_id)
 );
 
+create table public.google_tokens (
+  user_id uuid primary key references auth.users on delete cascade,
+  refresh_token text not null,
+  updated_at timestamptz default now()
+);
+
 -- ---------- helper ----------
 create or replace function public.is_member(g uuid)
 returns boolean language sql stable security definer set search_path = public as
@@ -67,6 +73,8 @@ alter table public.group_members enable row level security;
 alter table public.availability enable row level security;
 alter table public.suggestions enable row level security;
 alter table public.votes enable row level security;
+-- google_tokens: RLS on, NO policies — only the server (service role) touches it
+alter table public.google_tokens enable row level security;
 
 -- profiles: any signed-in user can read; you manage your own
 create policy "profiles read" on public.profiles for select to authenticated using (true);
