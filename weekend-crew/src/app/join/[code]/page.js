@@ -14,11 +14,18 @@ export default function JoinGroup() {
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      const { data: group } = await supabase
-        .from("groups").select("id, name, invite_code")
-        .eq("invite_code", String(code).toUpperCase()).maybeSingle();
-      if (!group) return setState({ loading: false, error: "Invalid invite code." });
-      // not signed in → groups table requires auth, but we land here after sign-in too
+      let group = null;
+      if (user) {
+        const { data } = await supabase
+          .from("groups").select("id, name, invite_code")
+          .eq("invite_code", String(code).toUpperCase()).maybeSingle();
+        group = data;
+      } else {
+        // Signed-out visitors get a name-only preview via a safe RPC.
+        const { data } = await supabase.rpc("group_preview", { code: String(code) });
+        if (data?.length) group = { name: data[0].name, preview: true };
+      }
+      if (!group) return setState({ loading: false, group: null, user, error: "This invite link doesn't look right — ask your friend for a fresh one." });
       setState({ loading: false, group, user, error: null });
     })();
   }, [code]);
@@ -26,8 +33,13 @@ export default function JoinGroup() {
   const join = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     await ensureProfile(supabase, user);
-    await supabase.from("group_members").upsert({ group_id: state.group.id, user_id: user.id });
-    try { localStorage.setItem("wc-group", state.group.id); } catch {}
+    const { data: g } = await supabase
+      .from("groups").select("id")
+      .eq("invite_code", String(code).toUpperCase()).maybeSingle();
+    if (g) {
+      await supabase.from("group_members").upsert({ group_id: g.id, user_id: user.id });
+      try { localStorage.setItem("wc-group", g.id); } catch {}
+    }
     router.replace("/app");
   };
 
@@ -40,20 +52,12 @@ export default function JoinGroup() {
         ) : state.error ? (
           <>
             <h1 className="text-xl font-extrabold text-slate-800">Hmm.</h1>
-            <p className="text-slate-500 mt-2">
-              {state.user ? state.error : "Sign in to view this invite."}
-            </p>
-            {!state.user && (
-              <button onClick={() => signInWithGoogle(supabase, `/join/${code}`)}
-                className="mt-6 w-full bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-bold py-3 rounded-2xl">
-                Continue with Google
-              </button>
-            )}
+            <p className="text-slate-500 mt-2">{state.error}</p>
           </>
         ) : (
           <>
             <h1 className="text-2xl font-extrabold text-slate-800">Join “{state.group.name}”</h1>
-            <p className="text-slate-500 mt-2 mb-6">Your friends are planning weekends here.</p>
+            <p className="text-slate-500 mt-2 mb-6">Your friends are planning weekends here. Sign in with Google to join the crew — it just shares your name &amp; email.</p>
             {state.user ? (
               <button onClick={join}
                 className="w-full bg-gradient-to-r from-teal-600 to-indigo-600 text-white font-bold py-3 rounded-2xl shadow-lg hover:opacity-90 transition">

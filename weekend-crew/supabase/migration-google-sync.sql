@@ -11,6 +11,12 @@ create table if not exists public.google_tokens (
 -- Only the server (service role key) reads/writes this table.
 alter table public.google_tokens enable row level security;
 
+-- Signed-out invite preview: returns just the group name for an invite code.
+create or replace function public.group_preview(code text)
+returns table(name text) language sql stable security definer set search_path = public as
+$$ select name from groups where invite_code = upper(code); $$;
+grant execute on function public.group_preview(text) to anon, authenticated;
+
 -- Group admins (creators) can remove members from their groups.
 create policy "creator removes members" on public.group_members
   for delete to authenticated using (

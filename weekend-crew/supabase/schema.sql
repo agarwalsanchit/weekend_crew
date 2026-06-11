@@ -62,6 +62,12 @@ create table public.google_tokens (
 );
 
 -- ---------- helper ----------
+-- Signed-out invite preview: returns just the group name for an invite code.
+create or replace function public.group_preview(code text)
+returns table(name text) language sql stable security definer set search_path = public as
+$$ select name from groups where invite_code = upper(code); $$;
+grant execute on function public.group_preview(text) to anon, authenticated;
+
 create or replace function public.is_member(g uuid)
 returns boolean language sql stable security definer set search_path = public as
 $$ select exists (select 1 from group_members where group_id = g and user_id = auth.uid()); $$;

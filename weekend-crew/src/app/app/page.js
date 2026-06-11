@@ -181,6 +181,28 @@ export default function App() {
     }
   };
 
+  // Download an .ics file — works with Apple Calendar, Outlook, everything.
+  const downloadIcs = (s) => {
+    const w = weekends.find((x) => x.key === s.weekend_key);
+    const start = (w?.startISO || s.weekend_key).replaceAll("-", "");
+    const end = (w?.endISOExclusive || "").replaceAll("-", "");
+    const ics = [
+      "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Weekend Crew//EN",
+      "BEGIN:VEVENT", `UID:${s.id}@weekend-crew`,
+      `DTSTART;VALUE=DATE:${start}`, `DTEND;VALUE=DATE:${end}`,
+      `SUMMARY:🎉 ${s.title}`, `DESCRIPTION:Weekend Crew · ${group?.name || ""}`,
+      "END:VEVENT", "END:VCALENDAR",
+    ].join("\r\n");
+    const url = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${s.title.replace(/[^\w ]/g, "").trim() || "weekend-plan"}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   // Google Calendar event-template link — works with zero permissions.
   const gcalLink = (s) => {
     const w = weekends.find((x) => x.key === s.weekend_key);
@@ -542,8 +564,11 @@ export default function App() {
                   <div className="flex gap-2">
                     {s.link && <a href={s.link} target="_blank" rel="noreferrer" className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-xl flex items-center gap-1"><Ticket size={12} /> Booking</a>}
                     <a href={gcalLink(s)} target="_blank" rel="noreferrer" className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-xl flex items-center gap-1">
-                      <Calendar size={12} /> Add to Google Cal
+                      <Calendar size={12} /> Google
                     </a>
+                    <button onClick={() => downloadIcs(s)} className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-xl flex items-center gap-1">
+                      <Calendar size={12} /> iCal / Apple
+                    </button>
                   </div>
                 </div>
               </div>
