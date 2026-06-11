@@ -10,3 +10,9 @@ create table if not exists public.google_tokens (
 -- RLS on, with NO policies: clients can never read these tokens.
 -- Only the server (service role key) reads/writes this table.
 alter table public.google_tokens enable row level security;
+
+-- Group admins (creators) can remove members from their groups.
+create policy "creator removes members" on public.group_members
+  for delete to authenticated using (
+    exists (select 1 from public.groups g where g.id = group_id and g.created_by = auth.uid())
+  );

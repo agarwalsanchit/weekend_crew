@@ -90,6 +90,9 @@ create policy "groups update by creator" on public.groups for update to authenti
 create policy "members read" on public.group_members for select to authenticated using (true);
 create policy "members join self" on public.group_members for insert to authenticated with check (user_id = auth.uid());
 create policy "members leave self" on public.group_members for delete to authenticated using (user_id = auth.uid());
+create policy "creator removes members" on public.group_members for delete to authenticated using (
+  exists (select 1 from public.groups g where g.id = group_id and g.created_by = auth.uid())
+);
 
 -- availability: visible to group members; you write your own
 create policy "availability read" on public.availability for select to authenticated using (public.is_member(group_id));

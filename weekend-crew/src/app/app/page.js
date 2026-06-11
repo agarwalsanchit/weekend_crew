@@ -218,6 +218,25 @@ export default function App() {
     await selectGroup(g);
   };
 
+  const removeMember = async (m) => {
+    if (!window.confirm(`Remove ${m.name} from ${group.name}?`)) return;
+    const { error } = await supabase.from("group_members").delete().eq("group_id", group.id).eq("user_id", m.id);
+    if (error) return ping("⚠️ Couldn't remove member");
+    setMembers((p) => p.filter((x) => x.id !== m.id));
+    ping(`👋 ${m.name} removed from the crew`);
+  };
+
+  const leaveGroup = async () => {
+    if (!window.confirm(`Leave ${group.name}? You'll need an invite to rejoin.`)) return;
+    const { error } = await supabase.from("group_members").delete().eq("group_id", group.id).eq("user_id", user.id);
+    if (error) return ping("⚠️ Couldn't leave group");
+    const rest = myGroups.filter((g) => g.id !== group.id);
+    setMyGroups(rest);
+    try { localStorage.removeItem("wc-group"); } catch {}
+    if (rest.length) await selectGroup(rest[0]);
+    else { setGroup(null); setNoGroup(true); }
+  };
+
   const saveAvatar = async (emoji, color) => {
     await supabase.from("profiles").update({ emoji, color }).eq("id", user.id);
     setMembers((p) => p.map((m) => (m.id === user.id ? { ...m, emoji, color } : m)));
@@ -563,17 +582,27 @@ export default function App() {
       <div className="bg-white rounded-3xl shadow p-5 space-y-3">
         {members.map((m) => {
           const fFrozen = frozenPlans.filter((s) => s.votes.includes(m.id)).length;
+          const isAdmin = group.created_by === user.id;
           return (
             <div key={m.id} className="flex items-center gap-3">
               <Avatar p={m} size="w-10 h-10" />
               <div className="flex-1">
-                <p className="font-bold text-gray-800">{m.name} {m.id === user.id && <span className="text-xs text-teal-600">(you)</span>}</p>
+                <p className="font-bold text-gray-800">
+                  {m.name} {m.id === user.id && <span className="text-xs text-teal-600">(you)</span>}
+                  {m.id === group.created_by && <span className="text-xs bg-amber-100 text-amber-700 font-bold px-2 py-0.5 rounded-full ml-1">admin</span>}
+                </p>
                 <p className="text-xs text-gray-400">{fFrozen} plan{fFrozen !== 1 ? "s" : ""} locked in</p>
               </div>
               {m.id === user.id && (
                 <button onClick={() => setShowAvatarPicker(!showAvatarPicker)}
                   className="text-xs font-bold text-teal-700 bg-teal-50 px-3 py-1.5 rounded-xl hover:bg-teal-100">
                   Change avatar
+                </button>
+              )}
+              {isAdmin && m.id !== user.id && (
+                <button onClick={() => removeMember(m)}
+                  className="text-xs font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-xl hover:bg-red-100">
+                  Remove
                 </button>
               )}
             </div>
@@ -609,7 +638,10 @@ export default function App() {
           </button>
         )}
       </div>
-      <button onClick={signOut} className="mt-6 mx-auto flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-600">
+      <button onClick={leaveGroup} className="mt-6 mx-auto flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-red-500">
+        👋 Leave this group
+      </button>
+      <button onClick={signOut} className="mt-3 mx-auto flex items-center gap-2 text-sm font-semibold text-gray-400 hover:text-gray-600">
         <LogOut size={15} /> Sign out
       </button>
     </div>
