@@ -56,6 +56,7 @@ export default function App() {
   const [suggestions, setSuggestions] = useState([]); // {..., votes: [userId]}
   const [tab, setTab] = useState("weekends");
   const [openWeekend, setOpenWeekend] = useState(null);
+  const [ideas, setIdeas] = useState([]);
   const [commentDraft, setCommentDraft] = useState("");
   const [showSuggestForm, setShowSuggestForm] = useState(false);
   const [newSug, setNewSug] = useState({ title: "", type: "chill", link: "" });
@@ -122,6 +123,14 @@ export default function App() {
   }, [supabase, router, loadGroupData]);
 
   useEffect(() => { bootstrap(); }, [bootstrap]);
+  // Load weather-aware, weekend-specific recommendations when a weekend opens.
+  useEffect(() => {
+    if (!openWeekend) return setIdeas([]);
+    const w = weekends.find((x) => x.key === openWeekend);
+    let live = true;
+    getNearbyIdeas(w, group?.city).then((list) => { if (live) setIdeas(list); }).catch(() => {});
+    return () => { live = false; };
+  }, [openWeekend, weekends, group?.city]);
   useEffect(() => {
     const onFocus = () => group && loadGroupData(group);
     window.addEventListener("focus", onFocus);
@@ -314,7 +323,6 @@ export default function App() {
     const w = weekends.find((x) => x.key === openWeekend);
     const mine = availability[w.key]?.[user.id] || { status: "unset" };
     const sugs = suggestions.filter((s) => s.weekend_key === w.key);
-    const ideas = getNearbyIdeas(w, group.city);
 
     return (
       <div className="max-w-2xl mx-auto px-4 pb-28">
@@ -452,14 +460,16 @@ export default function App() {
         <div className="bg-white rounded-3xl shadow p-5 mt-4">
           <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2"><MapPin size={18} className="text-red-400" /> Happening nearby</h3>
           <div className="space-y-2.5">
+            {ideas.length === 0 && <p className="text-sm text-gray-400 text-center py-3">Finding the good stuff…</p>}
             {ideas.map((e, i) => {
-              const T = TYPE_META[e.type];
+              const T = TYPE_META[e.type] || TYPE_META.chill;
               const I = T.icon;
               return (
                 <div key={i} className="flex items-center gap-3 border-2 border-gray-100 rounded-2xl p-3">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${T.chip}`}><I size={17} /></div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-gray-800 truncate">{e.title}</p>
+                    <p className="font-semibold text-sm text-gray-800">{e.title}</p>
+                    {e.why && <p className="text-xs text-teal-600 italic">{e.why}</p>}
                     <p className="text-xs text-gray-400">{T.label} · {e.site}</p>
                   </div>
                   <a href={e.link} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-bold text-teal-700 bg-teal-50 px-3 py-1.5 rounded-xl hover:bg-teal-100 whitespace-nowrap">
