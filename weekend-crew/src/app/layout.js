@@ -3,6 +3,16 @@ import "./globals.css";
 export const metadata = {
   title: "Weekend Crew",
   description: "Plan weekends with your friends — without the group-chat chaos.",
+  manifest: "/manifest.json",
+  icons: {
+    icon: "/icon-192.png",
+    apple: "/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Weekend Crew",
+  },
 };
 
 export const viewport = {

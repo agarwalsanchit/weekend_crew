@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import {
   Calendar, Users, Sparkles, MapPin, Plus, Check, Plane, PartyPopper,
   Snowflake, Ticket, Film, Mountain, Music, Home, ExternalLink,
-  ChevronLeft, MessageCircle, Lock, Sun, Copy, LogOut
+  ChevronLeft, MessageCircle, Lock, Sun, Copy, LogOut, Share2
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ensureProfile, enableCalendarSync, EMOJIS, COLORS } from "@/lib/auth";
@@ -249,6 +249,20 @@ export default function App() {
     await selectGroup(g);
   };
 
+  // Share a plan into the group chat (native share sheet on mobile, clipboard on desktop).
+  const sharePlan = async (s) => {
+    const w = weekends.find((x) => x.key === s.weekend_key);
+    const link = `${window.location.origin}/join/${group.invite_code}`;
+    const n = s.votes.length;
+    const text = s.frozen
+      ? `🧊 LOCKED IN: ${s.title} — ${w?.dates || s.weekend_key}. ${n} going! Details & calendar: ${link}`
+      : `💡 Plan for ${w?.label || s.weekend_key}: ${s.title} — ${n} in so far. You coming? Vote: ${link}`;
+    try {
+      if (navigator.share) await navigator.share({ text });
+      else { await navigator.clipboard.writeText(text); ping("📋 Copied — paste it in the group chat!"); }
+    } catch {} // user closed the share sheet
+  };
+
   const removeMember = async (m) => {
     if (!window.confirm(`Remove ${m.name} from ${group.name}?`)) return;
     const { error } = await supabase.from("group_members").delete().eq("group_id", group.id).eq("user_id", m.id);
@@ -429,6 +443,10 @@ export default function App() {
                       <span className="text-xs text-gray-500 pl-3">{s.votes.length} in</span>
                     </div>
                     <div className="flex gap-2">
+                      <button onClick={() => sharePlan(s)} title="Share to group chat"
+                        className="flex items-center gap-1 text-xs font-semibold text-gray-500 bg-white border-2 border-gray-200 px-2.5 py-1.5 rounded-xl hover:border-teal-300">
+                        <Share2 size={13} />
+                      </button>
                       {s.link && (
                         <a href={s.link} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs font-semibold text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-xl hover:bg-blue-100">
                           <Ticket size={13} /> Book
@@ -572,6 +590,10 @@ export default function App() {
                     {s.votes.map((v) => <Avatar key={v} p={members.find((m) => m.id === v)} size="w-6 h-6" ring="ring-2 ring-white" />)}
                   </div>
                   <div className="flex gap-2">
+                    <button onClick={() => sharePlan(s)} title="Share to group chat"
+                      className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-xl flex items-center gap-1">
+                      <Share2 size={12} /> Share
+                    </button>
                     {s.link && <a href={s.link} target="_blank" rel="noreferrer" className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-xl flex items-center gap-1"><Ticket size={12} /> Booking</a>}
                     <a href={gcalLink(s)} target="_blank" rel="noreferrer" className="text-xs font-bold text-gray-600 bg-gray-100 px-3 py-1.5 rounded-xl flex items-center gap-1">
                       <Calendar size={12} /> Google
